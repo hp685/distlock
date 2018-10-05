@@ -55,6 +55,7 @@ class DistLock(object):
 
 
 def serve_request(message):
+
    print message
    message.ack()
 
