@@ -8,6 +8,7 @@ from kombu import Connection
 from kombu import Producer
 from kombu import Consumer
 from kombu import Queue
+from kombu import uuid
 from time import sleep
 
 # Misc
@@ -42,7 +43,7 @@ class DistLock(object):
             _DEFAULT_LOCK_EXCHANGE,
             auto_declare=True,
         )
-        self.id = str(uuid.uuid4())
+        self.id = uuid()
 
         self.lock_client_q = Queue(
             name=self.id,
@@ -155,6 +156,7 @@ def manage_lock():
             red.set('current_lock_owner', message.payload.get('id'))
             # Inform the candidate owner that lock has been granted
             print 'id: ', message.payload.get('id')
+            message.ack()
             p.publish(
                 dict(request='GRANTED', id=message.payload.get('id')),
                 routing_key=message.payload.get('id'),
