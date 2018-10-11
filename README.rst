@@ -1,4 +1,5 @@
-Usage:
+
+
 .. code-block:: pycon
   >>> import lock
   >>> lock.setup_consumer()
