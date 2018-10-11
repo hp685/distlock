@@ -1,6 +1,4 @@
-#DistLock
-
-python -m tests.client
+Usage:
 .. code-block:: pycon
   >>> import lock
   >>> lock.setup_consumer()
@@ -10,5 +8,10 @@ python -m tests.client
   >>> client2_lock.acquire()
   >>> client1_lock.release()
   >>> client2_lock.release()
+  >>> lock.stop_consumer()
   
+
+python -m tests.client
+          
+
   
