@@ -87,20 +87,18 @@ class DistLock(object):
         self.lock_client.add_queue(self.lock_client_q)
         self.lock_client.consume(no_ack=True)
         while self.red_connection.get('is_consuming'):
-            print 'draining...'
             self.lock_client.connection.drain_events()
 
         # Purge all other requests if we are exiting?
 
     def read_response(self, message):
-        print('in read response...')
         print(message.payload)
         self.hold_lock.set()
 
     def __enter__(self):
         self.acquire()
 
-    def __exit__(self):
+    def __exit__(self, e_type, e_value, traceback):
         self.release()
 
     def __del__(self):
@@ -110,9 +108,6 @@ class DistLock(object):
 
 
 def serve_request(message):
-
-    print(message.payload.get('request'))
-    print(message.payload)
     red = redis.StrictRedis()
 
     p = Producer(Connection(),
@@ -120,7 +115,6 @@ def serve_request(message):
                  auto_declare=True,
                  )
     if message.payload.get('request') == 'RELEASE':
-        print('releasing...')
         # inform the current lock owner that lock has been released
         p.publish(
             dict(request='RELEASED', id=message.payload.get('id')),
@@ -130,7 +124,6 @@ def serve_request(message):
         red.delete('current_lock_owner')
 
     else:
-        print 'acquiring..'
         p.publish(
             dict(request='ENQUEUE', id=message.payload.get('id')),
             routing_key=_LOCK_REQUESTS,
@@ -147,7 +140,6 @@ def manage_lock():
                  )
     while red.get('is_consuming'):
         if not red.get('current_lock_owner'):
-            print 'manage lock owner...'
             sleep(3)
             # Get next candidate owner from queue
             message = _LOCK_REQUEST_Q.get()
@@ -155,7 +147,6 @@ def manage_lock():
                 continue
             red.set('current_lock_owner', message.payload.get('id'))
             # Inform the candidate owner that lock has been granted
-            print 'id: ', message.payload.get('id')
             message.ack()
             p.publish(
                 dict(request='GRANTED', id=message.payload.get('id')),
@@ -166,6 +157,8 @@ def manage_lock():
 
 
 def setup_consumer():
+    _REQUEST_Q.purge()
+    _LOCK_REQUEST_Q.purge()
     red = redis.StrictRedis()
     red.set('is_consuming', True)
     red.delete('current_lock_owner')
@@ -177,7 +170,7 @@ def consume_messages():
     red = redis.StrictRedis()
     _lock_manager.add_queue(_REQUEST_Q)
     _lock_manager.consume(no_ack=True)
-
+    
     while red.get('is_consuming'):
         try:
             _lock_manager.connection.drain_events(timeout=1)
@@ -192,8 +185,9 @@ def stop_consumer():
     consumer_thread.join()
     _lock_manager.connection.release()
     print('consumer stopped')
-
-
+    _REQUEST_Q.purge()
+    _LOCK_REQUEST_Q.purge()
+    
 _lock_manager = Consumer(
     Connection(),
     queues=[_REQUEST_Q],
@@ -212,10 +206,3 @@ consumer_thread.daemon = True
 lock_monitor_thread = threading.Thread(target=manage_lock)
 lock_monitor_thread.daemon = True
 
-if __name__ == '__main__':
-    setup_consumer()
-    d = DistLock()
-    print d
-    d.acquire()
-    d.release()
-    stop_consumer()

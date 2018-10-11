@@ -3,24 +3,16 @@ import lock
 import time
 
 def client1():
-    d1 = lock.DistLock()
-    print('Client 1 acquiring...')
-    d1.acquire()
-    print('Client 1 acquired lock')
-    time.sleep(10)
-    d1.release()
-    print('Client 1 released lock')
-    
-    
+    with lock.DistLock():
+        print('critical section for client 1')
+        for e in xrange(10):
+            print('Client 1 countdown: ', e)
 
 def client2():
-    d2 = lock.DistLock()
-    d2.acquire()
-    print('Client 2 acquired lock')
-    time.sleep(5)
-    d2.release()
-    print('Client 2 released lock')
-    
+    with lock.DistLock():
+        print('critical section for client 2')
+        for e in xrange(10):
+            print ('Client 2 countdown: ', e)
 
 if __name__ == '__main__':
     
